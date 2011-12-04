@@ -1,0 +1,4 @@
+let f1: (Nat =>[e1] Nat) = (\x:Nat => pred x) in
+let f2: (Nat =>[e2] Nat) = (\x:Nat => succ x) in
+let ho: (Nat => Nat) =>[bot] (Nat => Nat) -> Nat = (\f:(Nat => Nat) => \g:(Nat => Nat) -> f (g 0)) in
+ho f1 f2

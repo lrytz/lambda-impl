@@ -1,0 +1,15 @@
+let boolEff: (Bool =>[eff] Bool) = (\b:Bool => b) in
+
+// the effect of 'ho' cannot be computed to be [bot], it has to be [eff], even
+// though the function 'boolEff' is not called. the reason is the following:
+//  - the type of   (\g: Bool => Bool) => f   is   (Bool => Bool) =>[bot] (Nat => Nat) -> Nat
+//  - at this point, the type is interpreted as polymorphic in BOTH
+//    functions (Bool => Bool) and (Nat => Nat)
+//  - therefore, when applying it to the function 'boolEff', the effect of 'boolEff'
+//    is included. therefore, we get the typing derivation
+//       ((\g: Bool => Bool) => f) boolEff    :    (Nat => Nat) ->[eff] Nat
+
+let ho: ((Nat => Nat) -> Nat) =>[eff] Nat =
+  (\f: ((Nat => Nat) -> Nat) => (\g: (Bool => Bool) => f) boolEff (\x: Nat => x)) in
+
+ho (\f:(Nat => Nat) -> f 1)

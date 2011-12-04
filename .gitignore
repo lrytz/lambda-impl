@@ -1,0 +1,13 @@
+#project files
+/out.dot
+
+# eclipse
+/.cache
+/.classpath
+/.project
+/.target/
+
+# sbt
+/target/
+/project/target/
+/project/project/

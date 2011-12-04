@@ -1,0 +1,6 @@
+let ho: ((Nat => Nat) -> Nat) =
+  (\f: (Nat => Nat) -> (\x: Nat => f) 0 0) in
+
+let f1: (Nat =>[efkt] Nat) = (\x:Nat => succ x) in
+
+ho f1
