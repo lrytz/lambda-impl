@@ -10,8 +10,7 @@ import Interpreter._
 object Main extends scala.App {
   val tokens = new lexical.Scanner(StreamReader(new java.io.FileReader("examples/nestNotPrecise2.txt")))
     
-  val node = new Node
-  val logger = new DotFileLogger(node)
+  val logger = new DotFileLogger(new Node)
 
   phrase(Term)(tokens) match {
     case Success(trees, _) =>

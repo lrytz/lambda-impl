@@ -1,5 +1,5 @@
-let app12: ((Nat =>[bot] Nat => Nat) -> Nat) = (\f:(Nat =>[bot] Nat => Nat) -> f 0 0) in
+let app12: (Nat =>[bot] Nat => Nat) -> Nat = (f: Nat =>[bot] Nat => Nat) -> f 0 0 in
 
-let sum: (Nat =>[bot] Nat =>[effekt] Nat) = (\x:Nat => (\y:Nat => succ x)) in
+let sum: Nat =>[bot] Nat =>[effekt] Nat = (x: Nat) => (y: Nat) => succ x in
 
 app12 sum

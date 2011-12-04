@@ -41,8 +41,8 @@ object EffCalcParsers extends StandardTokenParsers {
         case "if" ~ t1 ~ "then" ~ t2 ~ "else" ~ t3 => If(t1, t2, t3) 
       }
     | ident ^^ { case id => Var(id) }
-    | "\\" ~ ident ~ ":" ~ Type ~ "=>" ~ Term ^^ { case "\\" ~ x ~ ":" ~ tp ~ "=>" ~ t => AbsM(x, tp, t) }
-    | "\\" ~ ident ~ ":" ~ Type ~ "->" ~ Term ^^ { case "\\" ~ x ~ ":" ~ tp ~ "->" ~ t => AbsP(x, tp, t) }
+    | "(" ~ ident ~ ":" ~ Type ~ ")" ~ "=>" ~ Term ^^ { case "(" ~ x ~ ":" ~ tp ~ ")" ~ "=>" ~ t => AbsM(x, tp, t) }
+    | "(" ~ ident ~ ":" ~ Type ~ ")" ~ "->" ~ Term ^^ { case "(" ~ x ~ ":" ~ tp ~ ")" ~ "->" ~ t => AbsP(x, tp, t) }
     | "(" ~> Term <~ ")"  ^^ { case t => t } 
     | "let" ~ ident ~ ":" ~ Type ~ "=" ~ Term ~ "in" ~ Term ^^ {
         case "let" ~ id ~ ":" ~ tp ~ "=" ~ t1 ~ "in" ~ t2 => Let(id, tp, t1, t2)
