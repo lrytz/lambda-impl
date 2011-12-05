@@ -4,7 +4,7 @@ import scala.util.parsing.input.Positional
 
 /** Abstract Syntax Trees for terms. */
 abstract class Term extends Positional {
-  def tpStr(tp: Type) = if (tp.isFun) "("+ tp +")" else tp
+//  def tpStr(tp: Type) = if (false && tp.isFun) "("+ tp +")" else tp
 }
 
 case object True extends Term {
@@ -35,13 +35,13 @@ case class Var(name: String) extends Term {
   override def toString() = name
 }
 case class Let(v: String, tp: Type, t1: Term, t2: Term) extends Term {
-  override def toString() = "let "+ v +":"+ tpStr(tp) +" = "+ t1 +" in\n"+ t2
+  override def toString() = "let "+ v +":"+ tp +" = "+ t1 +" in\n"+ t2
 }
 case class AbsM(v: String, tp: Type, t: Term) extends Term {
-  override def toString() = "(\\" + v + ":" + tpStr(tp) + " => " + t + ")"
+  override def toString() = "(" + v + ":" + tp + ") => " + t
 }
 case class AbsP(v: String, tp: Type, t: Term) extends Term {
-  override def toString() = "(\\" + v + ":" + tpStr(tp) + " -> " + t + ")"
+  override def toString() = "(" + v + ":" + tp + ") -> " + t
 }
 case class App(t1: Term, t2: Term) extends Term {
   override def toString() = t1.toString + (t2 match {

@@ -5,7 +5,7 @@ import scala.util.parsing.input.Position
 object Analyzer {
   /** Print an error message, together with the position where it occured. */
   case class TypeError(pos: Position, msg: String) extends Exception(msg) {
-    override def toString = 
+    override def toString() =
       msg + "\n" + pos.longString
   }
 
@@ -187,6 +187,9 @@ object Analyzer {
   def isSub(tpa: Type, tpb: Type): Boolean = (tpa, tpb) match {
     case (TypeBool, TypeBool) => true
     case (TypeNat, TypeNat) => true
+
+    case (TypePaar(at1, at2), TypePaar(bt1, bt2)) =>
+      isSub(at1, bt1) && isSub(at2, bt2)
 
     case (TypeFunMTag(at1, at2, ae, av), tpb) => isSub(TypeFunM(at1, at2, ae), tpb)
     case (TypeFunPTag(at1, at2, ae, av), tpb) => isSub(TypeFunP(at1, at2, ae), tpb)

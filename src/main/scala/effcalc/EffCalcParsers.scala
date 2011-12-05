@@ -86,7 +86,7 @@ object EffCalcParsers extends StandardTokenParsers {
   def Effect: Parser[Effect] = positioned(
       "bot" ^^^ EffectBot
     | "top" ^^^ EffectTop
-    | rep(ident) ^^ { case effs => EffectSet(effs.toSet.map(EffectAtom)) }
+    | ident ~ rep("," ~ ident) ^^ { case eff ~ effs => EffectSet((eff :: effs.map({case "," ~ id => id})).toSet.map(EffectAtom)) }
   )
   
   def lit2Num(n: Int): Term = 

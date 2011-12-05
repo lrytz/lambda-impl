@@ -8,7 +8,7 @@ import Interpreter._
 
 
 object Main extends scala.App {
-  val tokens = new lexical.Scanner(StreamReader(new java.io.FileReader("examples/nestNotPrecise2.txt")))
+  val tokens = new lexical.Scanner(StreamReader(new java.io.FileReader("examples/funComp.txt")))
     
   val logger = new DotFileLogger(new Node)
 

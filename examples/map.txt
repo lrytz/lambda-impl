@@ -1,0 +1,7 @@
+let map: (Nat => Nat) =>[bot] (Nat * Nat) -> (Nat * Nat) =
+  (f: Nat => Nat) => (p: Nat * Nat) -> { f fst p, f snd p } in
+
+let f1: Nat =>[e1,e2] Nat = (x: Nat) => succ x in
+let f2: Nat =>[e3] Nat = (x: Nat) => succ x in
+
+map f2 (map f1 {1,2})
