@@ -63,16 +63,16 @@ object Analyzer {
              "let type mismatch: expected " + tp + ", found " + tp1)
       
     case AbsM(x, tp, t1) =>
-      val ctx1 = Context(ctx.vals + (x -> tp), ctx.delayed + (x -> tag(tp, x)))
+      val ctx1 = Context(ctx.vals + (x -> tp), ctx.delayed + x)
       val (tp2, eff) = typeof(ctx1, t1)(logger.indent)
       val res = (TypeFunM(tp, tp2, eff), EffectBot)
       logger.logCustom("-- typing rule: mono abs --")
       logger.log(ctx, t, res)
       res
     case AbsP(x, tp, t1) =>
-      val ctx1 = Context(ctx.vals ++ (ctx.delayed + (x -> tag(tp, x))), Map())
+      val ctx1 = Context(tagVals(ctx.vals + (x -> tp), ctx.delayed + x), Set())
       val (tp2, eff) = typeof(ctx1, t1)(logger.indent)
-      val res = (TypeFunP(tp, untagAll(tp2, ctx.delayed.keySet + x), eff), EffectBot)
+      val res = (TypeFunP(tp, untagAll(tp2, ctx.delayed + x), eff), EffectBot)
       logger.logCustom("-- typing rule: poly abs --")
       logger.log(ctx, t, res)
       res
@@ -149,14 +149,21 @@ object Analyzer {
           throw TypeError(t.pos, "pair type expected but " + tp + " found")
       }
   }
-  
-  
+
+  // tagging
+
+  def tagVals(vals: Map[String, Type], toTag: Set[String]): Map[String, Type] = vals map {
+    case (vl, tp) => vl -> (if (toTag(vl)) tag(tp, vl) else tp) 
+  }
+
   def tag(tp: Type, v: String): Type = tp match {
     case TypeFunM(t1, t2, eff) => TypeFunMTag(t1, tag(t2, v), eff, v)
     case TypeFunP(t1, t2, eff) => TypeFunPTag(t1, tag(t2, v), eff, v)
     case t => t
   }
   
+  // untagging
+
   def untagAll(tp: Type, vs: Set[String]): Type = (tp /: vs)(untag)
   
   def untag(tp: Type, v: String): Type = tp match {
@@ -167,6 +174,8 @@ object Analyzer {
     case TypePaar(t1, t2) => TypePaar(untag(t1, v), untag(t2, v))
     case t => t
   }
+  
+  // pushing an effect through to an effect polymorphic function
 
   def push(eff: Effect, tp: Type): Type = tp match {
     case TypeFunM(t1, t2, e) => TypeFunM(t1, push(eff, t2), e)
@@ -175,7 +184,9 @@ object Analyzer {
     case TypeFunPTag(t1, t2, e, t) => TypeFunPTag(t1, t2, e.join(eff), t)
     case t => t
   }
-  
+
+  // latent effect of a function; maximal effect of applying it
+
   def latent(tp: Type): Effect = tp match {
     case TypeFunM(t1, t2, e) => e.join(latent(t2))
     case TypeFunP(t1, t2, e) => e.join(latent(t1))
@@ -183,6 +194,8 @@ object Analyzer {
     case TypeFunPTag(t1, t2, e, t) => e.join(latent(t1))
     case t => EffectBot
   }
+  
+  // subtyping
   
   def isSub(tpa: Type, tpb: Type): Boolean = (tpa, tpb) match {
     case (TypeBool, TypeBool) => true
@@ -197,12 +210,12 @@ object Analyzer {
     case (tpa, TypeFunPTag(bt1, bt2, be, bv)) => isSub(tpa, TypeFunP(bt1, bt2, be))
 
     case (TypeFunM(at1, at2, ae), TypeFunM(bt1, bt2, be)) =>
-      isSub(bt1, at1) && isSub(push(latent(at1), at2), push(latent(bt1), bt2)) && subEff(ae, be)
+      isSub(bt1, at1) && isSub(/*push(latent(at1), at2)*/ at2, /*push(latent(bt1), bt2)*/ bt2) && subEff(ae, be)
 
     case (TypeFunM(at1, at2, ae), TypeFunP(bt1, bt2, be)) =>
-      isSub(bt1, at1) && isSub(push(latent(at1), at2), bt2) && subEff(ae, be.join(latent(bt1)))
+      isSub(bt1, at1) && isSub(/*push(latent(at1), at2)*/ at2, bt2) && subEff(ae, be.join(latent(bt1)))
     case (TypeFunP(at1, at2, ae), TypeFunM(bt1, bt2, be)) =>
-      isSub(bt1, at1) && isSub(at2, push(latent(bt1), bt2)) && subEff(ae.join(latent(at1)), be)
+      isSub(bt1, at1) && isSub(at2, /*push(latent(bt1), bt2)*/ bt2) && subEff(ae.join(latent(at1)), be)
 
     case (TypeFunP(at1, at2, ae), TypeFunP(bt1, bt2, be)) =>
       isSub(bt1, at1) && isSub(at2, bt2) && subEff(ae.join(latent(at1)), be.join(latent(bt1)))
@@ -217,12 +230,12 @@ object Analyzer {
   }
 }
 
-case class Context(vals: Map[String, Type], delayed: Map[String, Type]) {
+case class Context(vals: Map[String, Type], delayed: Set[String]) {
   override def toString() = {
-    vals.map(kv => kv._1 +":"+ kv._2).mkString("{",", ","}") + " ; " + delayed.map(kv => kv._1 +":"+ kv._2).mkString("{", ", ", "}")
+    vals.map(kv => kv._1 +":"+ kv._2).mkString("{",", ","}") + " ; " + delayed.mkString("{", ", ", "}")
   }
 }
 
 object Context {
-  def empty = apply(Map(), Map())
+  def empty = apply(Map(), Set())
 }
