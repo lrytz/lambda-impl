@@ -1,0 +1,7 @@
+let fold: (Nat * Nat) =>[bot] Nat =>[bot] (Nat =>[bot] Nat => Nat) -> Nat =
+  (p: Nat * Nat) => (acc: Nat) => (f: Nat =>[bot] Nat => Nat) ->
+    f (f acc (fst p)) (snd p)  in
+
+let f1: Nat =>[bot] Nat =>[e1,e2] Nat = (x: Nat) => (y: Nat) => x in
+
+fold {1,2} 0 f1

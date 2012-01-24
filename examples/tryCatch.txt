@@ -15,7 +15,7 @@ in scala
 
 
 once we have try, can we write myTry?
-  let myTry: (Bool => Nat) 'bd'=>[bot] (Nat => Nat) 'hn'->{(body \ throws) join handler} Nat =
+  let myTry: (Bool => Nat) 'bd'=>[bot] (Nat => Nat) 'hn'->{(bd \ throws) join hn} Nat =
     (bd: Bool => Nat) =>[bot] (hn: Nat => Nat) -> try bd hn
   
   the computed effect of "try bd hn" should be "(bd \ throws) join hd". so we need to keep the

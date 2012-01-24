@@ -17,22 +17,28 @@ object Analyzer {
    */
   def typeof(ctx: Context, t: Term)(logger: Logger): (Type, Effect) = t match {
     case True | False =>
+      logger.logCustom("T-Bool")
       (TypeBool, EffectBot)
     case Zero =>
+      logger.logCustom("T-Zero")
       (TypeNat, EffectBot)
     case Succ(nv) =>
+      logger.logCustom("T-Succ")
       val (tp, eff) = typeof(ctx, nv)(logger.indent)
       if (TypeNat == tp) (TypeNat, eff)
       else throw TypeError(t.pos, "numeric type expected")
     case Pred(nv) =>
+      logger.logCustom("T-Pred")
       val (tp, eff) = typeof(ctx, nv)(logger.indent)
       if (TypeNat == tp) (TypeNat, eff)
       else throw TypeError(t.pos, "numeric type expected")
     case IsZero(nv) =>
+      logger.logCustom("T-IsZero")
       val (tp, eff) = typeof(ctx, nv)(logger.indent)
       if (TypeNat == tp) (TypeBool, eff)
       else throw TypeError(t.pos, "numeric type expected")
     case If(cond, t1, t2) =>
+      logger.logCustom("T-If")
       val (ctp, ceff) = typeof(ctx, cond)(logger.indent)
       if (TypeBool == ctp) {
         val (ttp, teff) = typeof(ctx, t1)(logger.indent)
@@ -43,6 +49,7 @@ object Analyzer {
       else throw TypeError(t.pos, "boolean type expected")
     // lambda terms
     case Var(y) =>
+      logger.logCustom("T-Var ("+ y +")")
       ctx.vals.get(y) match {
         case Some(tp) =>
           val res = (tp, EffectBot)
@@ -83,8 +90,8 @@ object Analyzer {
           val (tp2, eff2) = typeof(ctx, t2)(logger.indent)
           logger.indent.logCustom(tp2 +"  <:  "+ tp11)
           if (isSub(tp2, tp11)) {
-            val res = (push(latent(tp2), tp12), eff1.join(eff2).join(eff))
-            logger.indent.logCustom("pushing latent("+ tp2 +") = "+ latent(tp2) +"   >> into: "+ tp12 )
+            val res = (push(parameff(tp2), tp12), eff1.join(eff2).join(eff))
+            logger.indent.logCustom("pushing parameff("+ tp2 +") = "+ parameff(tp2) +"   >> into: "+ tp12 )
             logger.logCustom("-- typing rule: mono app --")
             logger.log(ctx, t, res)
             res
@@ -95,8 +102,8 @@ object Analyzer {
           val (tp2, eff2) = typeof(ctx, t2)(logger.indent)
           logger.indent.logCustom(tp2 +"  <:  "+ tp11)
           if (isSub(tp2, tp11)) {
-           val res = (tp12, eff1.join(eff2).join(eff).join(latent(tp2)))
-           logger.indent.logCustom("latent("+ tp2 +") = "+ latent(tp2))
+           val res = (tp12, eff1.join(eff2).join(eff).join(parameff(tp2)))
+           logger.indent.logCustom("parameff("+ tp2 +") = "+ parameff(tp2))
            logger.logCustom("-- typing rule: poly app --")
            logger.log(ctx, t, res)
            res
@@ -107,7 +114,8 @@ object Analyzer {
           val (tp2, eff2) = typeof(ctx, t2)(logger.indent)
           logger.indent.logCustom(tp2 +"  <:  "+ tp11)
           if (isSub(tp2, tp11)) {
-            val res = (push(latent(tp2), tp12), eff1.join(eff2))
+            val res = (push(parameff(tp2), tp12), eff1.join(eff2))
+            logger.indent.logCustom("pushing parameff("+ tp2 +") = "+ parameff(tp2) +"   >> into: "+ tp12 )
             logger.logCustom("-- typing rule: tagged mono app --")
             logger.log(ctx, t, res)
             res
@@ -129,10 +137,12 @@ object Analyzer {
           throw TypeError(t.pos, "expected: function type\nfound: " + tp)
       }
     case Paar(t1, t2) =>
+      logger.logCustom("T-Paar")
       val (tp1, eff1) = typeof(ctx, t1)(logger.indent)
       val (tp2, eff2) = typeof(ctx, t2)(logger.indent)
       (TypePaar(tp1, tp2), eff1.join(eff2))
     case First(t) =>
+      logger.logCustom("T-Fst")
       val (tp, eff) = typeof(ctx, t)(logger.indent)
       tp match {
         case TypePaar(tp1, tp2) =>
@@ -141,6 +151,7 @@ object Analyzer {
           throw TypeError(t.pos, "pair type expected but " + tp + " found")
       }
     case Second(t) =>
+      logger.logCustom("T-Snd")
       val (tp, eff) = typeof(ctx, t)(logger.indent)
       tp match {
         case TypePaar(tp1, tp2) =>
@@ -187,11 +198,15 @@ object Analyzer {
 
   // latent effect of a function; maximal effect of applying it
 
-  def latent(tp: Type): Effect = tp match {
-    case TypeFunM(t1, t2, e) => e.join(latent(t2))
-    case TypeFunP(t1, t2, e) => e.join(latent(t1))
-    case TypeFunMTag(t1, t2, e, t) => e
-    case TypeFunPTag(t1, t2, e, t) => e.join(latent(t1))
+  def parameff(tp: Type): Effect = tp match {
+    case TypeFunM(t1, t2, e) => e.join(parameff(t2))
+    case TypeFunP(t1, t2, e) => parameff(t1).join(e).join(parameff(t2))
+    case TypeFunMTag(t1, t2, e, t) => e.join(parameff(t2))
+    case TypeFunPTag(t1, t2, e, t) => parameff(t1).join(e).join(parameff(t2))
+// this is unsound. see example polyArgToPoly2. unfortunately, it also reduces expressiveness, so that polyArgToPoly doesn't fly.
+// dependent types and like effects would probably help
+//    case TypeFunMTag(t1, t2, e, t) => EffectBot
+//    case TypeFunPTag(t1, t2, e, t) => EffectBot
     case t => EffectBot
   }
   
@@ -210,15 +225,18 @@ object Analyzer {
     case (tpa, TypeFunPTag(bt1, bt2, be, bv)) => isSub(tpa, TypeFunP(bt1, bt2, be))
 
     case (TypeFunM(at1, at2, ae), TypeFunM(bt1, bt2, be)) =>
-      isSub(bt1, at1) && isSub(/*push(latent(at1), at2)*/ at2, /*push(latent(bt1), bt2)*/ bt2) && subEff(ae, be)
+//      isSub(bt1, at1) && isSub(push(parameff(at1), at2), push(parameff(bt1), bt2)) && subEff(ae, be)
+      isSub(bt1, at1) && isSub(at2, bt2) && subEff(ae, be)
 
-    case (TypeFunM(at1, at2, ae), TypeFunP(bt1, bt2, be)) =>
-      isSub(bt1, at1) && isSub(/*push(latent(at1), at2)*/ at2, bt2) && subEff(ae, be.join(latent(bt1)))
-    case (TypeFunP(at1, at2, ae), TypeFunM(bt1, bt2, be)) =>
-      isSub(bt1, at1) && isSub(at2, /*push(latent(bt1), bt2)*/ bt2) && subEff(ae.join(latent(at1)), be)
+//    case (TypeFunM(at1, at2, ae), TypeFunP(bt1, bt2, be)) =>
+//      isSub(bt1, at1) && isSub(push(parameff(at1), at2), bt2) && subEff(ae, be.join(parameff(bt1)))
+//      isSub(bt1, at1) && isSub(at2, bt2) && subEff(ae, be.join(parameff(bt1)))
+//    case (TypeFunP(at1, at2, ae), TypeFunM(bt1, bt2, be)) =>
+//      isSub(bt1, at1) && isSub(at2, push(parameff(bt1), bt2)) && subEff(ae.join(parameff(at1)), be)
+//      isSub(bt1, at1) && isSub(at2, bt2) && subEff(ae.join(parameff(at1)), be)
 
     case (TypeFunP(at1, at2, ae), TypeFunP(bt1, bt2, be)) =>
-      isSub(bt1, at1) && isSub(at2, bt2) && subEff(ae.join(latent(at1)), be.join(latent(bt1)))
+      isSub(bt1, at1) && isSub(at2, bt2) && subEff(ae, be)
       
     case _ => false
   }
