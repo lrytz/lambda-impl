@@ -1,15 +1,15 @@
-let ho: ((Nat =>[e] Nat) =>[bot] Nat -> Nat) =>[e] Nat =
-  (f: (Nat =>[e] Nat) =>[bot] Nat -> Nat) => f ((x: Nat) => x) 0 in
+let ho: ((g: Nat ->!e! Nat) ->!! Nat ->[g] Nat) ->!e! Nat =
+  (f: (g: Nat ->!e! Nat) ->!! Nat ->[g] Nat) -> f ((x: Nat) -> x) 0 in
 
 
-let f1: (Nat =>[bot] Nat) =>[bot] Nat -> Nat =
-  (f: Nat =>[bot] Nat) => (x: Nat) -> f x                        in
+let f1: (g: Nat ->!! Nat) ->!! Nat ->[g] Nat =
+  (g: Nat ->!! Nat) -> (x: Nat) ->[g] g x                        in
 
-let f2: (Nat =>[e,k] Nat) =>[bot] Nat -> Nat =
-  (f: Nat =>[e,k] Nat) => (x: Nat) -> f x                        in
+let f2: (g: Nat ->!e,k! Nat) ->!! Nat ->[g] Nat =
+  (g: Nat ->!e,k! Nat) -> (x: Nat) ->[g] g x                     in
 
-let f3: (Nat =>[e] Nat) =>[bot] Nat -> Nat =
-  (f: Nat =>[e] Nat) => (x: Nat) -> f x                          in
+let f3: (g: Nat ->!e! Nat) ->!! Nat ->[g] Nat =
+  (g: Nat ->!e! Nat) -> (x: Nat) ->[g] g x                       in
 
 
 // - applying ho to f1 would be unsound. in the body of ho, we assume that f accepts a function with effect e
@@ -19,4 +19,4 @@ let f3: (Nat =>[e] Nat) =>[bot] Nat -> Nat =
 //      put in. but this cannot happen in ho - there only the small effect can be put in. so it's sound.
 // - applying ho to f3 is obviously OK, it has the same type as the argument
 
-ho f3
+ho f2

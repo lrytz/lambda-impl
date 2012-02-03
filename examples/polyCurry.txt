@@ -1,5 +1,12 @@
-let app12: (Nat =>[bot] Nat => Nat) -> Nat = (f: Nat =>[bot] Nat => Nat) -> f 0 0 in
+// this does not work for the same reasons explained in "fold". need to tuple the arguments of "f"
+/*
+let app12: (f: Nat ->!! Nat -> Nat) ->[f] Nat = (f: Nat ->!! Nat -> Nat) ->[f] f 0 0 in
 
-let sum: Nat =>[bot] Nat =>[effekt] Nat = (x: Nat) => (y: Nat) => succ x in
+let sum: Nat ->!! Nat ->!efekt! Nat = (x: Nat) -> (y: Nat) -> succ x in
+*/
+
+let app12: (f: (Nat * Nat) -> Nat) ->[f] Nat = (f: (Nat * Nat) -> Nat) ->[f] f {0, 0} in
+
+let sum: (Nat * Nat) ->!efekt! Nat = (p: Nat * Nat) -> succ (fst p) in
 
 app12 sum

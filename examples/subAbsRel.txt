@@ -1,0 +1,20 @@
+// test subtyping between functions with absolute and relative effects.
+
+let ef: Nat -> !ef! Nat = (n: Nat) -> succ n in
+
+// the basic case - two functions with relative effects match
+let ho1: (f: Nat -> Nat) ->[f] Nat = (g: Nat -> Nat) ->[g] g 0 in
+
+// the function with relative effect "g" can still be a sub-type of a
+// function with absolute effect, if the absolute effect covers the largest
+// possible effect that "g" can produce.
+//   the absolute effect is "top"
+//   the relative effect "g" is always smaller than "top"
+// let ho2: (f: Nat -> Nat) -> Nat = (g: Nat -> Nat) ->[g] g 0    in
+
+// a function that does not have a relative effect conforms to a function
+// that has relative effect "f". the absolute effects must of course match,
+// so since on the left we are pure except "f", on the right we need to be pure.
+let ho3: (f: Nat -> Nat) ->[f] Nat = (g: Nat -> Nat) -> 0      in
+
+ho1 ef

@@ -1,3 +1,0 @@
-let ho: (Nat => Nat) -> (Nat * (Nat => Nat)) = (f: Nat => Nat) -> {0, f} in
-
-(snd (ho (x: Nat) => succ x)) 1 

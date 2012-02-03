@@ -7,7 +7,7 @@ abstract class Type extends Positional {
   def isFun = false
   def effStr(eff: Effect, default: Effect) =
     if (eff == default) " "
-    else "["+ eff +"] "
+    else " !"+ eff +"! "
 }
 
 case object TypeBool extends Type {
@@ -18,32 +18,13 @@ case object TypeNat extends Type {
   override def toString() = "Nat"
 }
 
-case class TypeFunM(t1: Type, t2: Type, eff: Effect) extends Type {
+case class TypeFun(param: String, t1: Type, poly: List[String], eff: Effect, t2: Type) extends Type {
   override def isFun = true
   override def toString() = {
-    (if (t1.isFun) "(" + t1 + ")" // right-associative
-     else t1.toString) + " =>" + effStr(eff, EffectTop) + t2
-  }
-}
-case class TypeFunMTag(t1: Type, t2: Type, eff: Effect, tag: String) extends Type {
-  override def isFun = true
-  override def toString() = {
-    (if (t1.isFun) "(" + t1 + ")" // right-associative
-     else t1.toString) + " ='" + tag + "'" + "=>" + effStr(eff, EffectTop) + t2
-  }
-}
-case class TypeFunP(t1: Type, t2: Type, eff: Effect) extends Type {
-  override def isFun = true
-  override def toString() = {
-    (if (t1.isFun) "(" + t1 + ")" // right-associative
-     else t1.toString) + " ->" + effStr(eff, EffectBot) + t2
-  }
-}
-case class TypeFunPTag(t1: Type, t2: Type, eff: Effect, tag: String) extends Type {
-  override def isFun = true
-  override def toString() = {
-    (if (t1.isFun) "(" + t1 + ")" // right-associative
-     else t1.toString) + " -'" + tag + "'->" + effStr(eff, EffectBot) + t2
+    val polyString = if (poly.isEmpty) " " else poly.mkString("[", ",", "]")
+    val default = if (poly.isEmpty) EffectTop else EffectBot
+    val paramString = if (!t1.isFun) t1.toString else "("+ param +":"+ t1 +")" // also keeps functions right-associative
+    paramString + " ->" + polyString + effStr(eff, default) + t2
   }
 }
 

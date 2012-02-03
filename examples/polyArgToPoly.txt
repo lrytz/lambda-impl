@@ -1,7 +1,0 @@
-let ho1: (Nat => Nat) -> Nat = (f: Nat => Nat) -> f 0    in
-
-let ho2: (Nat => Nat) -> Nat = (g: Nat => Nat) -> ho1 g  in
-
-let f: Nat =>[efkt] Nat = (x: Nat) => succ x             in
-
-ho2 f

@@ -9,11 +9,12 @@ object Analyzer {
       msg + "\n" + pos.longString
   }
 
-  /** Returns the type of the given term <code>t</code>.
+  /**
+   * Returns the type of the given term <code>t</code>.
    *
-   *  @param ctx the initial context
-   *  @param t   the given term
-   *  @return    the computed type
+   * @param ctx the initial context
+   * @param t   the given term
+   * @return    the computed type
    */
   def typeof(ctx: Context, t: Term)(logger: Logger): (Type, Effect) = t match {
     case True | False =>
@@ -60,6 +61,7 @@ object Analyzer {
       }
 
     case Let(x, tp, t1, t2) =>
+      checkType(ctx, tp)
       val (tp1, eff1) = typeof(ctx, t1)(logger.indent)
       logger.indent.logCustom(tp1 +"  <:  "+ tp)
       if (isSub(tp1, tp)) {
@@ -69,70 +71,62 @@ object Analyzer {
       } else throw TypeError(t.pos, 
              "let type mismatch: expected " + tp + ", found " + tp1)
       
-    case AbsM(x, tp, t1) =>
-      val ctx1 = Context(ctx.vals + (x -> tp), ctx.delayed + x)
+    case Abs(x, tp, poly, t1) =>
+      checkType(ctx, tp)
+      val ctx1 = Context(ctx.vals + (x -> tp), ctx.delayed ++ poly)
+      for (f <- poly) {
+        checkFunType(ctx1, f, t.pos)
+      }
       val (tp2, eff) = typeof(ctx1, t1)(logger.indent)
-      val res = (TypeFunM(tp, tp2, eff), EffectBot)
+      val res = (TypeFun(x, tp, poly, eff, tp2), EffectBot)
       logger.logCustom("-- typing rule: mono abs --")
       logger.log(ctx, t, res)
       res
-    case AbsP(x, tp, t1) =>
-      val ctx1 = Context(tagVals(ctx.vals + (x -> tp), ctx.delayed + x), Set())
-      val (tp2, eff) = typeof(ctx1, t1)(logger.indent)
-      val res = (TypeFunP(tp, untagAll(tp2, ctx.delayed + x), eff), EffectBot)
-      logger.logCustom("-- typing rule: poly abs --")
-      logger.log(ctx, t, res)
-      res
+      
+    case App(Var(x), t) if ctx.delayed(x) =>
+      typeof(ctx, Var(x))(logger.indent) match {
+        case (TypeFun(y, tp1, poly, eff, tp), EffectBot) =>
+          val (tp2, eff2) = typeof(ctx, t)(logger.indent)
+          logger.indent.logCustom(tp2 +"  <:  "+ tp1)
+          if (isSub(tp2, tp1)) {
+            (substX(tp, y, tp2), eff2)
+          } else throw TypeError(t.pos, 
+                 "parameter type mismatch: expected " + tp1 + ", found " + tp2)
+
+        case tp =>
+          throw TypeError(t.pos, "expected: function type\nfound: " + tp)
+      }
 
     case App(t1, t2) =>
       typeof(ctx, t1)(logger.indent) match {
-        case (TypeFunM(tp11, tp12, eff), eff1) =>
+        case (TypeFun(x, tp1, poly, eff, tp), eff1) =>
           val (tp2, eff2) = typeof(ctx, t2)(logger.indent)
-          logger.indent.logCustom(tp2 +"  <:  "+ tp11)
-          if (isSub(tp2, tp11)) {
-            val res = (push(parameff(tp2), tp12), eff1.join(eff2).join(eff))
-            logger.indent.logCustom("pushing parameff("+ tp2 +") = "+ parameff(tp2) +"   >> into: "+ tp12 )
-            logger.logCustom("-- typing rule: mono app --")
-            logger.log(ctx, t, res)
-            res
-          } else throw TypeError(t.pos, 
-                 "parameter type mismatch: expected " + tp11 + ", found " + tp2)
+          logger.indent.logCustom(tp2 +"  <:  "+ tp1)
+          if (isSub(tp2, tp1)) {
+            val resTp = substX(tp, x, tp2)
 
-        case (TypeFunP(tp11, tp12, eff), eff1) =>
-          val (tp2, eff2) = typeof(ctx, t2)(logger.indent)
-          logger.indent.logCustom(tp2 +"  <:  "+ tp11)
-          if (isSub(tp2, tp11)) {
-           val res = (tp12, eff1.join(eff2).join(eff).join(parameff(tp2)))
-           logger.indent.logCustom("parameff("+ tp2 +") = "+ parameff(tp2))
-           logger.logCustom("-- typing rule: poly app --")
-           logger.log(ctx, t, res)
-           res
-          } else throw TypeError(t.pos, 
-                 "parameter type mismatch: expected " + tp11 + ", found " + tp2)
-        
-        case (TypeFunMTag(tp11, tp12, eff, tag), eff1) =>
-          val (tp2, eff2) = typeof(ctx, t2)(logger.indent)
-          logger.indent.logCustom(tp2 +"  <:  "+ tp11)
-          if (isSub(tp2, tp11)) {
-            val res = (push(parameff(tp2), tp12), eff1.join(eff2))
-            logger.indent.logCustom("pushing parameff("+ tp2 +") = "+ parameff(tp2) +"   >> into: "+ tp12 )
-            logger.logCustom("-- typing rule: tagged mono app --")
+            val t2Var = t2 match {
+              case Var(y) => Some(y)
+              case _ => None
+            }
+            val effp = poly.map(f => {
+              if (ctx.delayed(f)) EffectBot
+              else if (f == x && t2Var.isDefined && ctx.delayed(t2Var.get)) EffectBot
+              else if (f == x) latent(tp2, ctx)
+              else ctx.vals.get(f) match {
+                case Some(tpf) => latent(tpf, ctx)
+                case None => throw new TypeError(t.pos, "undefined parameter name "+ f +
+                             " when expanding polymorphic effect of type "+ tp1)
+              }
+            }).foldRight(EffectBot: Effect)((e1, e2) => e1.join(e2))
+            
+            val res = (resTp, eff1.join(eff2).join(eff).join(effp))
+            logger.logCustom("-- typing rule: app --")
             logger.log(ctx, t, res)
             res
           } else throw TypeError(t.pos, 
-                 "parameter type mismatch: expected " + tp11 + ", found " + tp2)
-        
-        case (TypeFunPTag(tp11, tp12, eff, tag), eff1) =>
-          val (tp2, eff2) = typeof(ctx, t2)(logger.indent)
-          logger.indent.logCustom(tp2 +"  <:  "+ tp11)
-          if (isSub(tp2, tp11)) {
-            val res = (tp12, eff1.join(eff2))
-            logger.logCustom("-- typing rule: tagged poly app --")
-            logger.log(ctx, t, res)
-            res
-          } else throw TypeError(t.pos, 
-                 "parameter type mismatch: expected " + tp11 + ", found " + tp2)
-        
+                 "parameter type mismatch: expected " + tp1 + ", found " + tp2)
+
         case tp =>
           throw TypeError(t.pos, "expected: function type\nfound: " + tp)
       }
@@ -160,56 +154,91 @@ object Analyzer {
           throw TypeError(t.pos, "pair type expected but " + tp + " found")
       }
   }
-
-  // tagging
-
-  def tagVals(vals: Map[String, Type], toTag: Set[String]): Map[String, Type] = vals map {
-    case (vl, tp) => vl -> (if (toTag(vl)) tag(tp, vl) else tp) 
-  }
-
-  def tag(tp: Type, v: String): Type = tp match {
-    case TypeFunM(t1, t2, eff) => TypeFunMTag(t1, tag(t2, v), eff, v)
-    case TypeFunP(t1, t2, eff) => TypeFunPTag(t1, tag(t2, v), eff, v)
-    case t => t
+  
+  def checkType(ctx: Context, tp: Type): Unit = tp match {
+    case TypeFun(x, t1, poly, eff, t2) =>
+      val ctx1 = Context(ctx.vals + (x -> tp), ctx.delayed ++ poly)
+      for (f <- poly) {
+        checkFunType(ctx1, f, tp.pos)
+      }
+      checkType(ctx, t1)
+      checkType(ctx1, t2)
+      
+    case TypePaar(t1, t2) =>
+      checkType(ctx, t1)
+      checkType(ctx, t2)
+      
+    case _ =>
+      ()
   }
   
-  // untagging
-
-  def untagAll(tp: Type, vs: Set[String]): Type = (tp /: vs)(untag)
-  
-  def untag(tp: Type, v: String): Type = tp match {
-    case TypeFunMTag(t1, t2, eff, `v`) => TypeFunM(untag(t1, v), untag(t2, v), eff)
-    case TypeFunPTag(t1, t2, eff, `v`) => TypeFunP(untag(t1, v), untag(t2, v), eff)
-    case TypeFunMTag(t1, t2, eff, t) => TypeFunMTag(untag(t1, v), untag(t2, v), eff, t)
-    case TypeFunPTag(t1, t2, eff, t) => TypeFunPTag(untag(t1, v), untag(t2, v), eff, t)
-    case TypePaar(t1, t2) => TypePaar(untag(t1, v), untag(t2, v))
-    case t => t
-  }
-  
-  // pushing an effect through to an effect polymorphic function
-
-  def push(eff: Effect, tp: Type): Type = tp match {
-    case TypeFunM(t1, t2, e) => TypeFunM(t1, push(eff, t2), e)
-    case TypeFunP(t1, t2, e) => TypeFunP(t1, t2, e.join(eff))
-    case TypeFunMTag(t1, t2, e, t) => TypeFunMTag(t1, push(eff, t2), e, t)
-    case TypeFunPTag(t1, t2, e, t) => TypeFunPTag(t1, t2, e.join(eff), t)
-    case t => t
+  def checkFunType(ctx: Context, f: String, pos: Position) = ctx.vals.get(f) match {
+    case Some(tp) => tp match {
+      case TypeFun(_, _, _, _, _) => ()
+      case _ => throw new TypeError(pos,
+                "Parameter "+ f +" does not have a function type, but"+ tp)
+     }
+    case None =>
+      throw TypeError(pos, "undefined variable \'" + f + "'")
   }
 
-  // latent effect of a function; maximal effect of applying it
 
-  def parameff(tp: Type): Effect = tp match {
-    case TypeFunM(t1, t2, e) => e.join(parameff(t2))
-    case TypeFunP(t1, t2, e) => parameff(t1).join(e).join(parameff(t2))
-    case TypeFunMTag(t1, t2, e, t) => e.join(parameff(t2))
-    case TypeFunPTag(t1, t2, e, t) => parameff(t1).join(e).join(parameff(t2))
-// this is unsound. see example polyArgToPoly2. unfortunately, it also reduces expressiveness, so that polyArgToPoly doesn't fly.
-// dependent types and like effects would probably help
-//    case TypeFunMTag(t1, t2, e, t) => EffectBot
-//    case TypeFunPTag(t1, t2, e, t) => EffectBot
-    case t => EffectBot
+
+
+  def substX(tp: Type, x: String, tpx: Type): Type = {
+    def doSubst(tp: Type, x: String, polyx: List[String], effx: Effect): Type = tp match {
+      case TypeFun(y, t1, poly, eff, t2) if (y == x) =>
+        TypeFun(y, doSubst(t1, x, polyx, effx), poly, eff, t2)
+      
+      case TypeFun(y, t1, poly, eff, t2) if (y != x) =>
+        val resPoly = if (poly.contains(x)) (poly.filterNot(_ == x) ::: polyx).distinct else poly
+        val resEff  = if (poly.contains(x)) eff.join(effx) else eff
+        TypeFun(y, doSubst(t1, x, polyx, effx), resPoly, resEff, doSubst(t2, x, polyx, effx))
+        
+      case TypePaar(tp1, tp2) =>
+        TypePaar(doSubst(tp1, x, polyx, effx), doSubst(tp2, x, polyx, effx))
+        
+      case tp => tp
+    }
+
+    tpx match {
+      case TypeFun(y, ta, poly, eff, tb) =>
+        doSubst(tp, x, poly, eff)
+      case _ =>
+        tp
+    }
+  } 
+
+  def substX(tp: Type, x: String, x1: String): Type = tp match {
+    case TypeFun(y, t1, poly, eff, t2) if (y == x) =>
+      TypeFun(y, substX(t1, x, x1), poly, eff, t2)
+
+    case TypeFun(y, t1, poly, eff, t2) if (y != x) =>
+      val resPoly = poly map {
+        case f if f == x => x1
+        case f => f
+      }
+      TypeFun(y, substX(t1, x, x1), resPoly, eff, substX(t2, x, x1))
+        
+    case TypePaar(tp1, tp2) =>
+      TypePaar(substX(tp1, x, x1), substX(tp2, x, x1))
+        
+    case tp => tp
   }
   
+  def latent(tp: Type, ctx: Context): Effect = tp match {
+    case TypeFun(x, t1, poly, eff, t2) =>
+      val effp = poly.map(f => {
+        if (ctx.delayed(f)) EffectBot
+        else latent((ctx.vals + (x -> t1))(f), ctx)
+      }).foldRight(EffectBot: Effect)((e1, e2) => e1.join(e2))
+      eff.join(effp)
+      
+    case _ =>
+      throw new TypeError(tp.pos, "function type expected but " + tp + " found")
+  }
+
+
   // subtyping
   
   def isSub(tpa: Type, tpb: Type): Boolean = (tpa, tpb) match {
@@ -219,26 +248,19 @@ object Analyzer {
     case (TypePaar(at1, at2), TypePaar(bt1, bt2)) =>
       isSub(at1, bt1) && isSub(at2, bt2)
 
-    case (TypeFunMTag(at1, at2, ae, av), tpb) => isSub(TypeFunM(at1, at2, ae), tpb)
-    case (TypeFunPTag(at1, at2, ae, av), tpb) => isSub(TypeFunP(at1, at2, ae), tpb)
-    case (tpa, TypeFunMTag(bt1, bt2, be, bv)) => isSub(tpa, TypeFunM(bt1, bt2, be))
-    case (tpa, TypeFunPTag(bt1, bt2, be, bv)) => isSub(tpa, TypeFunP(bt1, bt2, be))
-
-    case (TypeFunM(at1, at2, ae), TypeFunM(bt1, bt2, be)) =>
-//      isSub(bt1, at1) && isSub(push(parameff(at1), at2), push(parameff(bt1), bt2)) && subEff(ae, be)
-      isSub(bt1, at1) && isSub(at2, bt2) && subEff(ae, be)
-
-//    case (TypeFunM(at1, at2, ae), TypeFunP(bt1, bt2, be)) =>
-//      isSub(bt1, at1) && isSub(push(parameff(at1), at2), bt2) && subEff(ae, be.join(parameff(bt1)))
-//      isSub(bt1, at1) && isSub(at2, bt2) && subEff(ae, be.join(parameff(bt1)))
-//    case (TypeFunP(at1, at2, ae), TypeFunM(bt1, bt2, be)) =>
-//      isSub(bt1, at1) && isSub(at2, push(parameff(bt1), bt2)) && subEff(ae.join(parameff(at1)), be)
-//      isSub(bt1, at1) && isSub(at2, bt2) && subEff(ae.join(parameff(at1)), be)
-
-    case (TypeFunP(at1, at2, ae), TypeFunP(bt1, bt2, be)) =>
-      isSub(bt1, at1) && isSub(at2, bt2) && subEff(ae, be)
+    case (TypeFun(ax, at1, apoly, aeff, at2), TypeFun(bx, bt1, bpoly, beff, bt2)) =>
+      def mapAPoly(f: String) = if (f == ax) bx else f
+      val mappedAT2 = substX(at2, ax, bx)
       
-    case _ => false
+      isSub(bt1, at1) &&
+      subEff(aeff, beff) &&
+      apoly.map(mapAPoly).toSet.subsetOf(bpoly.toSet) &&
+      // apoly.forall(f => bpoly.contains(mapAPoly(f)) ||
+      //                   subEff(latent((ctx.vals + (ax -> at1))(f), ctx.copy(delayed = Set())), beff)) &&
+      isSub(mappedAT2, bt2)
+
+    case _ =>
+      false
   }
   
   def subEff(e1: Effect, e2: Effect): Boolean = (e1, e2) match {

@@ -1,0 +1,6 @@
+let f1: Nat ->!e1! Nat = (x: Nat) -> pred x in
+let f2: Nat ->!e2! Nat = (x: Nat) -> succ x in
+
+let ho: (a: Nat -> Nat) ->!! (b: Nat -> Nat) ->[a b] Nat = (f: Nat -> Nat) -> (g: Nat -> Nat) ->[g f] f (g 0) in
+
+ho f1 f2

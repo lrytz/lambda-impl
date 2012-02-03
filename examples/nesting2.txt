@@ -1,0 +1,16 @@
+let boolEff: Bool ->!eff! Bool = (b: Bool) -> b in
+
+// this is the same as nesting1, but we make 'ho' effect-polymorphic instead
+// the effect of the main expression (ho (f: Nat -> Nat) ->[f] f 1) is "top".
+//
+// the reson: while type-checking the application to 'ho'
+//      ho (f: Nat -> Nat) ->[f] f 1
+// we know that 'ho' will apply the argument to SOME function (Nat -> Nat). but we
+// don't know which, therefore we have to assume it can have effect "top".
+//
+// it can be fixed by setting the effect of the (Nat -> Nat) function to pure.
+
+let ho: (f: (m: Nat -> Nat) ->[m] Nat) ->[f] Nat =
+  (f: (m: Nat -> Nat) ->[m] Nat) ->[f] ((g: Bool -> Bool) -> f) boolEff (x: Nat) -> x in
+
+ho (f: Nat -> Nat) ->[f] f 1

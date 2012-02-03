@@ -1,23 +1,20 @@
 /*
 for these examples:
- - we don't have (Unit => Nat), so we use (Bool => Nat)
+ - we don't have (Unit -> Nat), so we use (Bool -> Nat)
  - we don't have exception types, so we use Nat as exception type
 
 with current language
-  let try: (Bool => Nat) =>[bot] (Nat => Nat) -> Nat = ... in
+  let try: (b: Bool -> Nat) ->!! (h: Nat -> Nat) ->[b h] Nat = ... in
 
-with dependent types: lexical masking
-  let try: (Bool => Nat) 'body'=>[bot] (Nat => Nat) 'handler'->{(body \ throws) join handler} Nat = ... in
+with masking expressions
+  let try: (b: Bool -> Nat) ->!! (h: Nat -> Nat) ->[(b \ throw) h] Nat = ... in
 
 in scala
-  def try(body: => Int, handler: Exception => Int): Int @mask(like(body), throws) @like(handler)
-
+  def try(b: => Int, h: Exception => Int): Int @mask(like(b), throws) @like(h)
 
 
 once we have try, can we write myTry?
-  let myTry: (Bool => Nat) 'bd'=>[bot] (Nat => Nat) 'hn'->{(bd \ throws) join hn} Nat =
-    (bd: Bool => Nat) =>[bot] (hn: Nat => Nat) -> try bd hn
+  let myTry: (b: Bool -> Nat) ->!! (h: Nat -> Nat) ->[(b \ throws) h] Nat =
+    (b: Bool -> Nat) ->!! (h: Nat -> Nat) ->[(b \ throws) h] try b h
   
-  the computed effect of "try bd hn" should be "(bd \ throws) join hd". so we need to keep the
-  parameter names, replace the names
 */

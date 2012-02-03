@@ -37,11 +37,11 @@ case class Var(name: String) extends Term {
 case class Let(v: String, tp: Type, t1: Term, t2: Term) extends Term {
   override def toString() = "let "+ v +":"+ tp +" = "+ t1 +" in\n"+ t2
 }
-case class AbsM(v: String, tp: Type, t: Term) extends Term {
-  override def toString() = "(" + v + ":" + tp + ") => " + t
-}
-case class AbsP(v: String, tp: Type, t: Term) extends Term {
-  override def toString() = "(" + v + ":" + tp + ") -> " + t
+case class Abs(x: String, tp: Type, poly: List[String], t: Term) extends Term {
+  override def toString() = {
+    val polyString = if (poly.isEmpty) "" else poly.mkString("[", ",", "]")
+    "(" + x + ":" + tp + ") ->" + polyString + " " + t
+  }
 }
 case class App(t1: Term, t2: Term) extends Term {
   override def toString() = t1.toString + (t2 match {
@@ -60,4 +60,3 @@ case class First(t: Term) extends Term {
 case class Second(t: Term) extends Term {
   override def toString() = "snd " + t
 }
-

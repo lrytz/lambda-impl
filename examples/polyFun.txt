@@ -1,9 +1,9 @@
-let e1: Nat =>[e1] Nat = (x: Nat) => succ x in
-let e2: Nat =>[e2] Nat = (x: Nat) => succ x in
+let e1: Nat ->!e1! Nat = (n: Nat) -> succ n in
+let e2: Nat ->!e2! Nat = (n: Nat) -> succ n in
 
-let etop: Nat => Nat = (x: Nat) => x in
-let id: Nat =>[bot] Nat = (x: Nat) => x in
+let etop: Nat -> Nat = (n: Nat) -> n in
+let id: Nat ->!! Nat = (n: Nat) -> n in
 
-let app1: (Nat => Nat) -> Nat = (f: Nat => Nat) -> f 1 in
+let app1: (f: Nat -> Nat) ->[f] Nat = (f: Nat -> Nat) ->[f] f 1 in
 
 id (e1 (app1 e2))

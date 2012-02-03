@@ -1,0 +1,5 @@
+let ho: (f: Nat -> Nat) ->!! (Nat * (Nat ->[f] Nat)) = (f: Nat -> Nat) -> {0, (x: Nat) ->[f] f x} in
+
+let e1: Nat ->!e1! Nat = (x: Nat) -> succ x in
+
+(snd (ho e1)) 1

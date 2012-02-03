@@ -1,19 +1,7 @@
-let comp: (Nat => Nat) =>[bot] (Nat => Nat) =>[bot] (Nat => Nat) =
-  (f: Nat => Nat) => (g: Nat => Nat) => ((x: Nat) => g (f x)) in
+let comp: (f: Nat -> Nat) ->!! (g: Nat -> Nat) ->!! (Nat ->[f g] Nat) =
+  (m: Nat -> Nat) -> (n: Nat -> Nat) -> ((x: Nat) ->[m n] n (m x)) in
 
-let f1: Nat =>[e1] Nat = (x: Nat) => succ x in
-let f2: Nat =>[e2] Nat = (x: Nat) => succ x in
+let f1: Nat ->!e1! Nat = (x: Nat) -> succ x in
+let f2: Nat ->!e2! Nat = (x: Nat) -> succ x in
 
 (comp f1 f2) 0
-
-/*
-with dependent types
-
-  let comp: (Nat => Nat) 'f'=>[bot] (Nat => Nat) 'g'=>[bot] (Nat ={f join g}=> Nat) =
-    (f: Nat => Nat) => (g: Nat => Nat) => ((x: Nat) => g (f x))  // [*]
-
-[*] need to change effect types to be a mix of "like" and concrete effects, and not expand polymorphic effects
-
-in scala
-  def compose(f: Int => Int, g: Int => Int): (Int => Int) { def apply(x: Int): Int @like(f, g) } @pure
-*/

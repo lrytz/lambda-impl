@@ -1,7 +1,42 @@
-let fold: (Nat * Nat) =>[bot] Nat =>[bot] (Nat =>[bot] Nat => Nat) -> Nat =
-  (p: Nat * Nat) => (acc: Nat) => (f: Nat =>[bot] Nat => Nat) ->
+
+// this does not work as desired, relative effects don't mix so well with currying.
+// the function "f" has type
+//    Nat ->!! (Nat -> Nat)
+//
+// we would like to express the fact that "fold" is effect-polymorphic in the function
+// that "f" returns, which is not the same as saying that it is polymorphic in "f".
+//
+// therefore, the call "f 1 2" cannot be interpreted as pure in the body of "fold".
+//
+// there are multiple solutions:
+//  - introduce multi-argument functions
+//  - tuple the function arguments to simulate the effect
+//  - generalize relative effects and allow to specify the desired behavior. in scala,
+//    this could be achieved by selecting on a type's type argument, as if they were
+//    type members. example: given
+//       trait Function1[A, B]
+//       f: Function1[Nat, Function1[Nat, Nat]]
+//    allow relative effect "f.B"
+//
+// this would also solve the issue in scala where you have an argument (l: List[A=>B]),
+// and you want to say @like(l.T)
+
+/*
+let fold: (f: Nat ->!! Nat -> Nat) ->!! (Nat * Nat) ->!! Nat ->[f] Nat =
+  (f: Nat ->!! Nat -> Nat) -> (p: Nat * Nat) -> (acc: Nat) ->[f]
     f (f acc (fst p)) (snd p)  in
 
-let f1: Nat =>[bot] Nat =>[e1,e2] Nat = (x: Nat) => (y: Nat) => x in
+let f1: Nat ->!! Nat ->!e1! Nat = (x: Nat) -> (y: Nat) -> x in
 
-fold {1,2} 0 f1
+fold f1 {1,2} 0
+*/
+
+// the paired version works
+
+let foldPaired: (f: (Nat * Nat) -> Nat) ->!! (Nat * Nat) ->!! Nat ->[f] Nat =
+  (f: (Nat * Nat) -> Nat) -> (p: Nat * Nat) -> (acc: Nat) ->[f]
+    f {f {acc, fst p}, snd p}  in
+
+let f1: (Nat * Nat) ->!e1! Nat = (p: Nat * Nat) -> fst p in
+
+foldPaired f1 {1,2} 0

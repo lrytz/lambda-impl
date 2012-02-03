@@ -20,8 +20,7 @@ object Interpreter {
     // lambda terms
     case Var(n) => emptySet + n
     case Let(x, _, t1, t2) => freeVars(t1) ++ (freeVars(t2) - x)
-    case AbsM(x, _, t1) => freeVars(t1) - x
-    case AbsP(x, _, t1) => freeVars(t1) - x
+    case Abs(x, _, _, t1) => freeVars(t1) - x
     case App(t1, t2) => freeVars(t1) ++ freeVars(t2)
     // pairs
     case Paar(t1, t2) => freeVars(t1) ++ freeVars(t2)
@@ -42,26 +41,40 @@ object Interpreter {
    *  @return  the transformed term with bound variables renamed.
    */
   def alpha(t: Term): Term = {
-    val (x, tp, t1, cons) = t match {
-      case AbsM(x, tp, t1) => (x, tp, t1, AbsM(_, _, _))
-      case AbsP(x, tp, t1) => (x, tp, t1, AbsP(_, _, _))
-      case Let(x, tp, t1, t2) => (x, tp, t2, (x: String, tp: Type, t2: Term) => Let(x, tp, t1, t2))
-    }
-    val x1 = fresh(x)
-
-    def alphaconv(t: Term): Term = t match {
+    def convTerm(t: Term, x: String, x1: String): Term = t match {
       case Var(n) if (x == n) => Var(x1)
-      case App(t1, t2) => App(alphaconv(t1), alphaconv(t2))
-      case AbsM(v, tp, t1) if (v != x) => AbsM(v, tp, alphaconv(t1))
-      case AbsP(v, tp, t1) if (v != x) => AbsP(v, tp, alphaconv(t1))
+      case App(t1, t2) => App(convTerm(t1, x, x1), convTerm(t2, x, x1))
+      case Abs(v, tp, poly, t1) if (v != x) => Abs(v, convType(tp, x, x1), convPoly(poly, x, x1), convTerm(t1, x, x1))
       case Let(v, tp, t1, t2) => {
-        if (v != x) Let(v, tp, t1, alphaconv(t2))
+        if (v != x) Let(v, convType(tp, x, x1), convTerm(t1, x, x1), convTerm(t2, x, x1))
         else Let(v, tp, t1, t2)
       }
       case _ => t
     }
+    
+    def convType(tp: Type, x: String, x1: String): Type = tp match {
+      case TypeFun(param, t1, poly, eff, t2) =>
+        TypeFun(param, convType(t1, x, x1), convPoly(poly, x, x1), eff, convType(t2, x, x1))
+      case TypePaar(t1, t2) =>
+        TypePaar(convType(t1, x, x1), convType(t2, x, x1))
+      case _ => tp
+    }
+    
+    def convPoly(poly: List[String], x: String, x1: String): List[String] =
+      poly map {
+        case f if f == x => x1
+        case f => f
+      }
 
-    cons(x1, tp, alphaconv(t1))
+    t match {
+      case Let(x, tp, t1, t2) =>
+        val x1 = fresh(x)
+        Let(x1, tp, t1, convTerm(t2, x, x1))
+        
+      case Abs(x, tp, poly, t1) =>
+        val x1 = fresh(x)
+        Abs(x1, tp, convPoly(poly, x, x1), convTerm(t1, x, x1))
+    }
   }
 
   import scala.collection.mutable.HashMap
@@ -111,20 +124,13 @@ object Interpreter {
       else
         Let(y, tp, subst(t1, x, s), subst(t2, x, s))
       
-    case AbsM(y, tp, t1) =>
+    case Abs(y, tp, poly, t1) =>
       if (y == x)
         t
       else if (freeVars(s)(y))
         subst(alpha(t), x, s)
       else
-        AbsM(y, tp, subst(t1, x, s))
-    case AbsP(y, tp, t1) =>
-      if (y == x)
-        t
-      else if (freeVars(s)(y))
-        subst(alpha(t), x, s)
-      else
-        AbsP(y, tp, subst(t1, x, s))
+        Abs(y, tp, poly, subst(t1, x, s))
     case App(t1, t2) =>
       App(subst(t1, x, s), subst(t2, x, s))
     // pairs
@@ -151,8 +157,7 @@ object Interpreter {
   def isValue(t: Term): Boolean = t match {
     case True | False => true
     case t if isNumericVal(t) => true
-    case AbsM(_, _, _) => true
-    case AbsP(_, _, _) => true
+    case Abs(_, _, _, _) => true
     case Paar(t1, t2) => isValue(t1) & isValue(t2)
     case _ => false
   }
@@ -177,9 +182,7 @@ object Interpreter {
       Let(x, tp, reduce(t1), t2)
       
     // lambda terms
-    case App(AbsM(x, _, t1), v2) if isValue(v2) =>
-      subst(t1, x, v2)
-    case App(AbsP(x, _, t1), v2) if isValue(v2) =>
+    case App(Abs(x, _, _, t1), v2) if isValue(v2) =>
       subst(t1, x, v2)
     case App(v1, t2) if isValue(v1) =>
       App(v1, reduce(t2))

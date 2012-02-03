@@ -1,0 +1,6 @@
+let boolEff: Bool ->!eff! Bool = (b: Bool) -> b in
+
+let ho: ((m: Nat -> Nat) ->[m] Nat) ->!! Nat =
+  (f: (m: Nat -> Nat) ->[m] Nat) -> ((g: Bool -> Bool) -> f) boolEff (x: Nat) -> x in
+
+ho (f: Nat -> Nat) ->[f] f 1

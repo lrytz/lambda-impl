@@ -1,8 +1,0 @@
-let ho1: (Nat => Nat) =>[bot] Nat -> Nat = (f: Nat => Nat) => (x: Nat) -> f x    in
-
- // not allowed. "ho1 g" has type "Nat ->[e] Nat", which does not conform to the return type of "ho2"
-let ho2: (Nat =>[e] Nat) -> (Nat -> Nat) = (g: Nat =>[e] Nat) -> ho1 g    in
-
-let f: Nat =>[e] Nat = (x: Nat) => succ x     in
-
-ho2 f

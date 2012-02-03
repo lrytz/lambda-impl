@@ -1,6 +1,14 @@
-let ho: (Nat => Nat) -> Nat =
-  (f: Nat => Nat) -> ((x: Nat) => f) 0 0 in
+// this does not work because "f" has type "Nat -> Nat", and not "Nat ->[f] Nat".
+// maybe we can fix this in general. then we also would not need a special case for
+// forwarding a parameter function to another higher-order function.
+/*
+let ho: (f: Nat -> Nat) ->[f] Nat =
+  (f: Nat -> Nat) ->[f] ((x: Nat) -> f) 0 0 in
+*/
 
-let f1: Nat =>[efkt] Nat = (x: Nat) => succ x in
+let ho: (f: Nat -> Nat) ->[f] Nat =
+  (f: Nat -> Nat) ->[f] ((x: Nat) -> (x: Nat) ->[f] f x) 0 0 in
+
+let f1: Nat ->!efkt! Nat = (x: Nat) -> succ x in
 
 ho f1

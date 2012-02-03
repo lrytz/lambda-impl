@@ -1,0 +1,11 @@
+let ho1: (f: Nat -> Nat) ->!! Nat ->[f] Nat = (f: Nat -> Nat) -> (x: Nat) ->[f] f x    in
+
+// todo: should probably work - need subtyping with context?!?
+let ho2: (f: Nat ->!e! Nat) ->!! (Nat ->[f] Nat) = (g: Nat ->!e! Nat) -> ho1 ((x: Nat) ->[g] g x)    in
+
+// does not work because "g" has type "Nat ->!e! Nat", instead of "Nat ->[g] Nat"
+// let ho2: (f: Nat ->!e! Nat) ->!! (Nat ->[f] Nat) = (g: Nat ->!e! Nat) -> ho1 g    in
+
+let f: Nat ->!e! Nat = (x: Nat) -> succ x     in
+
+ho2 f
