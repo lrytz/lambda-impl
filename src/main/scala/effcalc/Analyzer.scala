@@ -64,7 +64,7 @@ object Analyzer {
       checkType(ctx, tp)
       val (tp1, eff1) = typeof(ctx, t1)(logger.indent)
       logger.indent.logCustom(tp1 +"  <:  "+ tp)
-      if (isSub(tp1, tp)) {
+      if (isSub(ctx, tp1, tp)) {
         val ctx1 = Context(ctx.vals + (x -> tp), ctx.delayed)
         logger.logCustom("let "+ x +" = ...")
         typeof(ctx1, t2)(logger.indent)
@@ -88,7 +88,7 @@ object Analyzer {
         case (TypeFun(y, tp1, poly, eff, tp), EffectBot) =>
           val (tp2, eff2) = typeof(ctx, t)(logger.indent)
           logger.indent.logCustom(tp2 +"  <:  "+ tp1)
-          if (isSub(tp2, tp1)) {
+          if (isSub(ctx, tp2, tp1)) {
             (substX(tp, y, tp2), eff2)
           } else throw TypeError(t.pos, 
                  "parameter type mismatch: expected " + tp1 + ", found " + tp2)
@@ -102,7 +102,7 @@ object Analyzer {
         case (TypeFun(x, tp1, poly, eff, tp), eff1) =>
           val (tp2, eff2) = typeof(ctx, t2)(logger.indent)
           logger.indent.logCustom(tp2 +"  <:  "+ tp1)
-          if (isSub(tp2, tp1)) {
+          if (isSub(ctx, tp2, tp1)) {
             val resTp = substX(tp, x, tp2)
 
             val t2Var = t2 match {
@@ -241,23 +241,23 @@ object Analyzer {
 
   // subtyping
   
-  def isSub(tpa: Type, tpb: Type): Boolean = (tpa, tpb) match {
+  def isSub(ctx: Context, tpa: Type, tpb: Type): Boolean = (tpa, tpb) match {
     case (TypeBool, TypeBool) => true
     case (TypeNat, TypeNat) => true
 
     case (TypePaar(at1, at2), TypePaar(bt1, bt2)) =>
-      isSub(at1, bt1) && isSub(at2, bt2)
+      isSub(ctx, at1, bt1) && isSub(ctx, at2, bt2)
 
     case (TypeFun(ax, at1, apoly, aeff, at2), TypeFun(bx, bt1, bpoly, beff, bt2)) =>
       def mapAPoly(f: String) = if (f == ax) bx else f
-      val mappedAT2 = substX(at2, ax, bx)
+      val mappedBT2 = substX(bt2, bx, ax)
       
-      isSub(bt1, at1) &&
+      isSub(ctx, bt1, at1) &&
       subEff(aeff, beff) &&
-      apoly.map(mapAPoly).toSet.subsetOf(bpoly.toSet) &&
-      // apoly.forall(f => bpoly.contains(mapAPoly(f)) ||
-      //                   subEff(latent((ctx.vals + (ax -> at1))(f), ctx.copy(delayed = Set())), beff)) &&
-      isSub(mappedAT2, bt2)
+      // apoly.map(mapAPoly).toSet.subsetOf(bpoly.toSet) &&
+      apoly.forall(f => bpoly.contains(mapAPoly(f)) ||
+                        subEff(latent((ctx.vals + (ax -> at1))(f), ctx.copy(delayed = Set())), beff)) &&
+      isSub(ctx.copy(vals = ctx.vals + (ax -> at1)), at2, mappedBT2)
 
     case _ =>
       false
