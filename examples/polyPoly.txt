@@ -1,0 +1,49 @@
+let f1: (Nat ->!! Nat) = (x: Nat) -> x     in
+let f2: (Nat ->!e! Nat) = (x: Nat) -> x    in
+
+
+// ho1 is poly in the eff-poly argument function. -> lose precision
+// here, "g" has effect "like g", because "g" is in the relative effect of the current function
+
+let ho1: (g: (h: Nat -> Nat) ->[h] Nat) ->[g] Nat = (g: (h: Nat -> Nat) ->[h] Nat) ->[g]
+
+  // "g" has effect "like g"
+  let m: (x: Nat) ->!! ((k: Nat -> Nat) ->[g] Nat) = (x: Nat) -> g in
+
+  g f1
+in
+
+
+// f has effect like f
+
+let ho2: (f: Nat -> Nat) ->[f] Nat = (f: Nat -> Nat) ->[f]
+  let g: Nat ->!! (Nat ->[f] Nat) = ((x: Nat) -> f) in
+  g 1 2
+in
+
+
+// again, f has effect "like f", therefore "g f" has effect "like f"
+
+let ho3: (f: Nat -> Nat) ->[f] Nat = (f: Nat -> Nat) ->[f]
+  let g: (h: Nat -> Nat) ->!! (Nat ->[h] Nat) = (h: Nat -> Nat) -> h in
+  g f 1
+in
+
+
+// since g is a eff-poly function, g has not effect "like g"
+
+let ho5: (g: (h: Nat -> Nat) ->[h] Nat) ->!! Nat = (g: (h: Nat -> Nat) ->[h] Nat) ->
+  // this is correct; "g" has type "(h: Nat -> Nat) ->[h] Nat"
+  let l: (x: Nat) ->!! ((k: Nat -> Nat) ->[k] Nat) = (x: Nat) -> g in
+  
+  // this would not type-check; "g" doesn't have effect "like g"
+  // let m: (x: Nat) ->!! ((k: Nat -> Nat) ->[g] Nat) = (x: Nat) -> g in  
+
+  g f1
+in
+
+
+
+// calling "ho1" has effect top: the effect of the argument is "top". the information that "ho"
+// passes a pure function into the argument function is missing in the signature
+ho1 ((h: Nat -> Nat) ->[h] h 0)

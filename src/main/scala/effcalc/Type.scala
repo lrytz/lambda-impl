@@ -7,7 +7,7 @@ abstract class Type extends Positional {
   def isFun = false
   def effStr(eff: Effect, default: Effect) =
     if (eff == default) " "
-    else " !"+ eff +"! "
+    else "!"+ eff +"! "
 }
 
 case object TypeBool extends Type {
@@ -21,7 +21,7 @@ case object TypeNat extends Type {
 case class TypeFun(param: String, t1: Type, poly: List[String], eff: Effect, t2: Type) extends Type {
   override def isFun = true
   override def toString() = {
-    val polyString = if (poly.isEmpty) " " else poly.mkString("[", ",", "]")
+    val polyString = if (poly.isEmpty) "" else poly.mkString("[", ",", "]")
     val default = if (poly.isEmpty) EffectTop else EffectBot
     val paramString = if (!t1.isFun) t1.toString else "("+ param +":"+ t1 +")" // also keeps functions right-associative
     paramString + " ->" + polyString + effStr(eff, default) + t2

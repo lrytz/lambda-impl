@@ -1,0 +1,45 @@
+// this is correct
+//   - first type : using a function that has at most effect like "g", we produce a nat
+//   - second type: using a function that has at most "e1", we produce a nat
+// ok since "g" has at most "e1"
+
+let t1: (g: Nat ->!e1! Nat) ->!! (Nat ->[g] Nat) ->!! Nat =
+  (f: Nat ->!e1,e2! Nat) -> (h: Nat ->!e1! Nat) -> 0 in
+
+
+// like effects are expanded
+let t2: (f: Nat -> Nat) ->[f] Nat = (f: Nat -> Nat) ->[f]
+  let m: (Nat ->[f] Nat) = f in
+  let n: (Nat ->[m] Nat) = m in
+  
+  let t2i: (o: Nat ->[f] Nat) ->!! (Nat ->[o] Nat) = (o: Nat ->[f] Nat) -> o in
+
+  // "t2i" requires a function poly in "f"
+  // "t2i n" passes a function with type "Nat ->[n] Nat" to "t2i". subtyping goes through [n] to [m] to [f]. 
+
+  t2i n 1
+in
+
+
+
+
+
+// type mismatch, because [f] is not always larger than !e1!, it can be smaller
+/*
+let t2: (Nat ->!e1! Nat) ->!! (Nat ->!e1! Nat) ->!! Nat =
+  (f: Nat ->!e1! Nat) -> (h: Nat ->[f] Nat) -> 0 in
+*/
+
+
+// here we get a type mismatch: effect [f] can be pure, so a function with
+// effect !e1! does conform
+/*
+let t3: (f: Nat ->!e1! Nat) ->!! (Nat ->[f] Nat) =
+  let g: Nat ->!e1! Nat = (x: Nat) -> 0 in
+  (f: Nat ->!e1! Nat) -> g
+in
+*/
+
+
+0
+
